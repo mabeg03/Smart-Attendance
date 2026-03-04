@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Student Dashboard</title>
+<link rel="stylesheet" href="/css/dashboard.css">
+<script src="https://unpkg.com/html5-qrcode"></script>
+</head>
+<body>
+
+<div class="dashboard">
+
+<div class="sidebar">
+    <h2>Student Panel</h2>
+    <button onclick="startScanner()">Scan QR</button>
+    <button onclick="startQuiz()">Start Quiz</button>
+    <button onclick="loadAttendance()">My Attendance</button>
+    <a href="/logout"><button>Logout</button></a>
+</div>
+
+<div class="content">
+
+<!-- QR Attendance -->
+<div class="card">
+    <h3>QR Attendance</h3>
+    <div id="reader" style="width:300px;"></div>
+    <div id="attendanceResult"></div>
+</div>
+
+<!-- Quiz Section -->
+<div class="card">
+    <h3>Assessment</h3>
+    <div id="quiz"></div>
+</div>
+
+<!-- Attendance History -->
+<div class="card">
+    <h3>My Attendance History</h3>
+    <table id="attendanceTable">
+        <tr>
+            <th>Session ID</th>
+            <th>Date</th>
+        </tr>
+    </table>
+</div>
+
+</div>
+</div>
+
+<script>
+
+// ================= QR SCANNER =================
+function startScanner(){
+
+    const html5QrCode = new Html5Qrcode("reader");
+
+    html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+
+        qrCodeMessage => {
+
+            html5QrCode.stop();
+
+            navigator.geolocation.getCurrentPosition(function(position){
+
+                let lat = position.coords.latitude;
+                let lng = position.coords.longitude;
+
+                fetch(qrCodeMessage + "&lat=" + lat + "&lng=" + lng)
+                .then(res => res.text())
+                .then(data=>{
+                    document.getElementById("attendanceResult").innerHTML =
+                        "<strong>" + data + "</strong>";
+                });
+
+            });
+
+        }
+    );
+}
+
+
+// ================= LOAD QUIZ =================
+function startQuiz(){
+
+fetch('/student/get-quiz')
+.then(res => res.json())
+.then(data=>{
+
+    if(data.length === 0){
+        document.getElementById("quiz").innerHTML =
+        "<p style='color:red;'>No quiz available. Mark attendance first.</p>";
+        return;
+    }
+
+    let html = "<form id='quizForm'>";
+
+    data.forEach((q,i)=>{
+
+        html += `
+        <div style="margin-bottom:20px; padding:10px; border:1px solid #ddd;">
+        <p><strong>${i+1}. ${q.questionText}</strong></p>
+
+        <label><input type="radio" name="${q.id}" value="A"> ${q.optionA}</label><br>
+        <label><input type="radio" name="${q.id}" value="B"> ${q.optionB}</label><br>
+        <label><input type="radio" name="${q.id}" value="C"> ${q.optionC}</label><br>
+        <label><input type="radio" name="${q.id}" value="D"> ${q.optionD}</label><br>
+
+        </div>
+        `;
+    });
+
+    html += `
+        <button type="button" onclick="submitQuiz()" 
+        style="padding:10px 20px; background:#28a745; color:white; border:none; cursor:pointer;">
+        Submit Quiz
+        </button>
+    `;
+
+    html += "</form>";
+
+    document.getElementById("quiz").innerHTML = html;
+});
+}
+
+
+// ================= SUBMIT QUIZ =================
+function submitQuiz(){
+
+    const form = document.getElementById("quizForm");
+    const formData = new FormData(form);
+
+    let answers = {};
+
+    formData.forEach((value, key)=>{
+        answers[key] = value;
+    });
+
+    fetch('/student/submit-quiz', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(answers)
+    })
+    .then(res => res.text())
+    .then(data=>{
+        document.getElementById("quiz").innerHTML =
+        "<h3 style='color:green;'>" + data + "</h3>";
+    });
+}
+
+
+// ================= LOAD ATTENDANCE =================
+function loadAttendance(){
+
+fetch('/student/my-attendance')
+.then(res => res.json())
+.then(data=>{
+
+let table = document.getElementById("attendanceTable");
+
+table.innerHTML = `
+<tr>
+<th>Session ID</th>
+<th>Date</th>
+</tr>
+`;
+
+data.forEach(a=>{
+table.innerHTML += `
+<tr>
+<td>${a.sessionId}</td>
+<td>${a.markedAt}</td>
+</tr>
+`;
+});
+
+});
+}
+
+</script>
+
+</body>
+</html>

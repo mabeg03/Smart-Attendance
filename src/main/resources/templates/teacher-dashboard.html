@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Teacher Dashboard</title>
+<link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+
+<div class="dashboard">
+
+<div class="sidebar">
+    <h2>Teacher Panel</h2>
+    <button onclick="generateQR()">Generate QR</button>
+    <button onclick="loadQuestions()">View Questions</button>
+    <button onclick="loadAnalytics()">Analytics</button>
+    <a href="/logout"><button>Logout</button></a>
+</div>
+
+<div class="content">
+
+<!-- QR Card -->
+<div class="card">
+    <h3>QR Attendance</h3>
+    <div id="qr"></div>
+</div>
+
+<!-- Add Question Card -->
+<div class="card">
+    <h3>Add Question</h3>
+    <form action="/teacher/add-question" method="post">
+        <input name="questionText" placeholder="Question" required>
+        <input name="optionA" placeholder="Option A" required>
+        <input name="optionB" placeholder="Option B" required>
+        <input name="optionC" placeholder="Option C" required>
+        <input name="optionD" placeholder="Option D" required>
+        <input name="correctAnswer" placeholder="Correct Option (A/B/C/D)" required>
+        <button class="primary" type="submit">Save Question</button>
+    </form>
+</div>
+
+<!-- Question List -->
+<div class="card">
+    <h3>All Questions</h3>
+    <table id="questionTable">
+        <tr>
+            <th>ID</th>
+            <th>Question</th>
+            <th>Correct</th>
+        </tr>
+    </table>
+</div>
+
+<!-- Analytics -->
+<div class="card">
+    <h3>System Analytics</h3>
+    <div id="analyticsData"></div>
+</div>
+
+</div>
+</div>
+
+<script>
+
+// ✅ Generate QR with Teacher GPS
+function generateQR(){
+
+    navigator.geolocation.getCurrentPosition(function(position){
+
+        let lat = position.coords.latitude;
+        let lng = position.coords.longitude;
+
+        fetch('/teacher/generate-qr?lat=' + lat + '&lng=' + lng)
+        .then(res => res.text())
+        .then(data=>{
+            document.getElementById("qr").innerHTML =
+            '<img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data='+data+'"><br><br>'+data;
+        });
+
+    }, function(error){
+        alert("Location permission required to generate QR!");
+    });
+}
+
+// ✅ Load Questions
+function loadQuestions(){
+
+    fetch('/teacher/questions')
+    .then(res => res.json())
+    .then(data=>{
+
+        let table = document.getElementById("questionTable");
+
+        table.innerHTML = `
+        <tr>
+            <th>ID</th>
+            <th>Question</th>
+            <th>Correct</th>
+        </tr>
+        `;
+
+        data.forEach(q=>{
+            table.innerHTML += `
+            <tr>
+                <td>${q.id}</td>
+                <td>${q.questionText}</td>
+                <td>${q.correctAnswer}</td>
+            </tr>
+            `;
+        });
+
+    });
+}
+
+// ✅ Load Analytics
+function loadAnalytics(){
+
+    fetch('/teacher/analytics')
+    .then(res => res.json())
+    .then(data=>{
+
+        let html = "";
+
+        for(let key in data){
+            html += `<p><strong>${key}:</strong> ${data[key]}</p>`;
+        }
+
+        document.getElementById("analyticsData").innerHTML = html;
+
+    });
+}
+
+</script>
+
+</body>
+</html>
